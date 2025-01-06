@@ -1,0 +1,422 @@
+\chapter{Solution Overview}
+\label{cha:implementation}
+
+
+\section{A note on modularity}
+
+The project as a whole was designed to be a application that allows for code analysis, however implementing abstractions from a level of reading bytes from process memory all the way to managing the interface's state resulted in the decision to split the deliverable into three separate entities named: reader, analyzer and bin (for binary). As the project was implemented in rust i was able to leverage rust's \verb|cargo| build system to easily manage all three projects as subdirectories
+
+\begin{lstlisting}[caption="The basic project structure"]
+/memspotter
+    /reader
+    /analyzer
+    /bin
+\end{lstlisting}
+
+Furthermore to ease the usage and possible refactors i decided to use rust's \verb|trait| \footnote{\enquote{Traits are similar to a feature often called interfaces in other languages, although with some differences.} - The Rust Book} system to define shared function and type signatures which i could then implement for the data structures and abstractions of my choosing
+
+\begin{lstlisting}[caption=\label{lst:arch}"a trait definition example", language=Rust,]
+/// Defines an architecture for the program
+#[blanket::blanket(derive(Ref, Rc, Arc, Box))]
+pub trait Arch: Debug + Clone + PartialEq + Eq {
+    /// the process id type usually a [u64]
+    type Pid: Sized + Debug;
+    /// the single instruction type
+    type Instruction: Sized + Debug + From<u8>;
+    /// the header type of the /maps file for the arch
+    type Header: MapHeader;
+}    
+\end{lstlisting}
+
+as seen in \ref{lst:arch} the Arch trait can even defines no new functions, but allow for defining that each architecture has an associated pid, instruction and header types. This in turn can be used to ease the later abstractions. 
+
+\begin{lstlisting}[caption=\label{lst:segment}"The memory segment trait", language=Rust]
+/// generic trait for a allocated memory segment of a process
+pub trait MemorySegment<A>: Sized + std::fmt::Debug + Clone + Eq + PartialEq
+where
+    A: Arch,
+{
+    /// returns the segment's bytes
+    fn memory(&self) -> &[u8];
+    /// iterates over the segment's bytes
+    fn iter_memory(&self) -> impl Iterator<Item = &u8>;
+    /// returns the segment's header
+    fn header(&self) -> &A::Header;
+}
+\end{lstlisting}
+
+A great example of such ease would be the memory segment trait \ref{lst:segment} which can just take a given architecture implementation and it's specific header type will be included too, and can even be referenced in the function signatures (see the \verb|header(&self)| function).
+
+Such design choice additionally allows for different implementations to expose a common interface but also be extremely flexible in the implementations as. for example the apple based \verb|Mach-O| objects can implement it only for their own specific architecture but the \verb|x86_64| family of systems can implement header for both the 64 and 32-bit ELF file variations. Furthermore it also allows for easy differentiation between globally shared behavior and architecture-specific implementation as can be seen in \ref{lst:reader_structure}.
+
+\begin{lstlisting}[caption=\label{lst:reader_structure}"Structure of the reader module outlining separate trait and implementation folder"]
+/reader
+    ...
+    /traits
+        arch.rs
+        map.rs
+        header.rs
+        function.rs
+        library.rs
+        ...
+    /x864_64
+        arch.rs
+        map.rs
+        header.rs
+        so_function.rs
+        shared_object.rs
+        ...
+        
+\end{lstlisting}
+
+\section{Reader module}
+\label{reader}
+
+\subsection{Traits}
+the reader module at it's core beside the Arch\ref{lst:arch} and Segment\ref{lst:segment} traits is represented by:
+\begin{enumerate}
+
+    \item \label{reader:map}Map
+
+Map is the most top level trait and fully abstracts over the contents of the entire process memory as well as the linked library code.
+This trait allows access to the process pid, individual memory segments as described and read from the \verb|\proc\{pid}\maps| \cite{kerrisk_proc_pid_maps5_2024} specification.
+It also allows the user to access the individual mapped libraries of the process \ref{reader:mapped_lib}.
+It also defines special functions which return the special stack and heap segments \cite{TODO}.
+    
+\begin{lstlisting}[caption=\label{lst:map}"The Memory Map Trait definition", language=Rust]
+ /// Describes a mapping of process part header to memory segments
+#[blanket::blanket(derive(Ref, Rc, Arc, Box))]
+pub trait Map<A: Arch + 'static>: Sized + Clone {
+    /// map error type
+    //type Error: std::error::Error;
+    /// the specific memory segment type
+    type Segment: MemorySegment<A>;
+    /// the specific library type
+    type Library: MappedLibrary<A>;
+
+    /// returns the process pid
+    fn pid(&self) -> A::Pid;
+
+    /// returns segments
+    fn segments(&self) -> Vec<Self::Segment>;
+    /// returns an iterator ov the segments
+    fn iter_segments(&self) -> impl Iterator<Item = Self::Segment>;
+
+    /// returns the stack segment
+    fn stack(&self) -> Self::Segment;
+    /// returns the head segment
+    fn heap(&self) -> Self::Segment;
+
+    /// returns all segments that are linked
+    //fn linked(&self) -> &[Self::Library];
+    /// iterates over all segments that are linked
+    fn iter_linked(&self) -> impl Iterator<Item = Self::Library>;
+}   
+\end{lstlisting}
+
+ \item \label{reader:mapped_lib} MappedLibrary
+
+    This trait is an abstraction that represents a system shared library that has been mapped onto segments of a running process.
+    It defines methods that expose the actual library \ref{reader:library} as well as the ability to access the individual memory segments \ref{lst:segment}.
+    For ease of use in analysis it also defines methods for directly accessing the writeable and executable segments directly, as well a a function which allows for translating the address of a library's function \ref{reader:function} to an address in the process memory space.
+\begin{lstlisting}[caption=\label{lst:mapped_lib}"The MappedLibrary Trait definition", language=Rust]
+ /// represents a memory segment that is linked from some library
+#[blanket::blanket(derive(Ref, Rc, Arc, Box))]
+pub trait MappedLibrary<A>
+where
+    A: Arch,
+    Self: std::fmt::Debug + Clone,
+{
+    /// the library type that the segment is mapped to
+    type Library: Library<A>;
+    /// the memory segment type to which the library refers
+    type Segment: MemorySegment<A>;
+    /// returns the linked library reference
+    fn library(&self) -> Self::Library;
+    /// returns all of the segments
+    fn segments(&self) -> Vec<Self::Segment>;
+    /// iterates over the whole linked memory
+    /// goes through segments in order, so breaks between addressed 
+    /// will not be included
+    fn iter_mem(&self) -> impl Iterator<Item = &u8>;
+
+    /// retrieves the first found executable segment
+    /// CAN PANIC
+    fn exec_segment(&self) -> Self::Segment;
+    /// retrieves the first found writable segment
+    /// CAN PANIC
+    fn write_segment(&self) -> Self::Segment;
+    /// returns the mapped address of a function
+    fn mapped_address(&self, func: &<Self::Library as Library<A>>::Function) -> u64;
+}   
+\end{lstlisting}
+  
+    \item \label{reader:library} Library
+    This trait is a step lower on the abstraction ladder as it allows for the interaction with a shared library object.
+    It exposes a definition of a specific implementation of the Function\ref{reader:function} trait that the library uses as well as methods that allow dumping the entire executable section memory as well as access to the range of the \verb|.text| section of the library file which holds the assembly code for the library's functions \cite{TODO}.
+    Furthermore this trait allows for getting the function code from the library object for a function with a specific name as well as some helper methods such as \verb|fn name(&self) -> String| which returns the name of the shared library for ease of use.
+    
+\begin{lstlisting}[caption=\label{lst:library}"The Library Trait definition", language=Rust]
+/// Trait for interacting with binary linkable objects e.g. `.so` files
+#[blanket::blanket(derive(Ref, Rc, Arc, Box))]
+pub trait Library<A: Arch>: Debug + Sized + PartialEq + Eq + Clone {
+    /// the type for an individual library function
+    type Function: Function<A>;
+    /// type for the error the trait can return in functions
+    type Error: std::error::Error;
+    /// returns an [Iterator] over all instructions
+    /// most likely in instruction order but not guaranteed
+    fn instructions(&self) -> impl Iterator<Item = A::Instruction>;
+    /// returns all [Self::Function]s contained in the library
+    fn functions(&self) -> impl Iterator<Item = Self::Function>;
+    /// returns a [Self::Function] for a given name if exists
+    /// else returns [None]
+    fn get(&self, name: &str) -> Option<&Self::Function>;
+    /// returns the instruction [u8] and the [Self::Function] for a given index if inside library
+    /// bounds
+    fn context(&self, index: u64) -> Option<(&A::Instruction, &Self::Function)>;
+
+    /// returns the file name of the library
+    fn name(&self) -> String;
+
+    ///returns the file address range for the `.text` section
+    fn text_range(&self) -> std::ops::Range<u64>;
+}
+\end{lstlisting}  
+    \item \label{reader:function} Function
+    This trait defines the shared behavior of the Functions that a given library contains.
+    It allows for both direct assembly code access to the whole function as well as specific ranges of it.
+    Furthermore it exposes methods that allows for the name, size and more importantly location of the function in both a source file by providing the file offset as well as in a mapped process context by providing the virtual memory address.
+
+\begin{lstlisting}[caption=\label{lst:function}"The Function Trait definition", language=Rust]
+/// trait representing a function, usually from a [Library] context
+#[blanket::blanket(derive(Ref, Rc, Arc, Box))]
+pub trait Function<A: Arch>: Debug + Clone {
+    /// returns the function name
+    fn name(&self) -> String;
+    /// returns the instruction range of the function e.g. its start and end
+    fn file_context(&self) -> std::ops::Range<u64>;
+    /// memory address at which the function starts
+    fn address(&self) -> u64;
+    /// returns an iterator over every byte 
+    /// ([Self::Instruction]) of the function code
+    fn bytes(&self) -> impl Iterator<Item = u8>;
+    /// gets the instruction [u8] at a given Index
+    /// returns [None] if index is out of bounds
+    fn get(&self, index: u64) -> Option<&A::Instruction>;
+    /// returns a given range of instructions ([\[u8\]])
+    /// returns [None] if out of bounds
+    fn range(&self, range: Range<u64>) -> Option<&[A::Instruction]>;
+    /// returns the function size in bytes
+    fn size(&self) -> u64;
+    /// file offset
+    fn file_offset(&self) -> u64;
+}
+\end{lstlisting}
+    
+    \item \label{reader:header}Header
+    This trait defines the way of interaction with entries of the \verb|\proc\{pid}\maps| entries as defined in \cite{kerrisk_proc_pid_maps5_2024}.
+    The included methods allow for accessing the mapped region's permissions, process memory range, the source file target as well as its offset and size. 
+\begin{lstlisting}[caption=\label{lst:header}"The Header Trait definition", language=Rust]
+/// Struct representing a single /mem/\<pid\>/maps entry
+///
+/// EXAMPLE
+///
+/// 35b1800000-35b1820000 r-xp 00000000 08:02 135522 /usr/lib64/ld-2.15.so
+///
+///  \[start\]-\[end\] \[permissions\] \[offset\] \[device\]:\[inode\] \[links_to\]
+#[blanket::blanket(derive(Ref, Rc, Arc, Box))]
+pub trait MapHeader: std::fmt::Debug + Eq + PartialEq + Clone + Ord {
+    /// returns permissions
+    fn permissions(&self) -> &Permissions;
+    /// returns the mapped addresses described by the header
+    fn mem_range(&self) -> std::ops::Range<u64>;
+    /// returns the offset in the file or whatever it links to
+    fn file_offset(&self) -> u64;
+    /// size of the referenced memory in bytes
+    fn mem_size(&self) -> u64;
+    /// returns a string target for the header if exists
+    fn target(&self) -> Option<String>;
+}    
+\end{lstlisting}
+ 
+\end{enumerate}
+
+- TODO diagram of traits
+
+\subsection{Memory Segments}
+
+\subsection{the library to memory mapping}
+
+- merging of library code and memory contents to a single structure
+
+- allowing matching of addresses due to incorporating both file offset as well as virtual memory addresses
+
+\subsection{Assembly functions}
+
+- symtabs
+
+- vm memory
+
+...
+
+\subsection{The header parsing process}
+
+\subsection{x86\_64 Map implementation}
+
+After the header parsing process the program opens the mem file.
+Then for each of the header it first rewinds the memory file pointer to its starting position.
+Then the method tries to create a memory segment \ref{lst:segment} specifically the x86 implementation of said interface \ref{lst:x86_segment} and propagates any encountered errors using the \verb|?| operator \cite{TODO}.
+Afterwards the segment is wrapped into an Rc (reference counting pointer) which allows for easier access to the structure and more efficient memory usage. 
+Then if the created segments ore of \verb|Linked| variant additional code tries to access the referenced file and create a MappedLibrary from it.
+Additionally there the linked entries are extenden which mean that all segments of the linked object will be referencing a single library instance.
+Lastly it is important to notice how rust's mutability rules are enforced - since the code creating the linked HashMap specifies the struct as mutable we cannot put them as-is into the ready map.
+To match both the type and the non-mutability we have to iterate over the entries and wrap them in RC pointers too, they are static for the program lifetime and cannot be internally modified. 
+
+\begin{lstlisting}[caption=\label{lst:map_from_pid}"Excerpt from x86\_64 Map's from\_pid function", language=Rust, breaklines=true]
+/// creates a new instance from a provided process id
+#[must_use]
+#[instrument]
+pub fn from_pid(pid: <X86_64 as crate::Arch>::Pid) -> Result<Self, crate::error::Error> {
+    let mut linked = HashMap::new();
+    let headers = ...
+    ...
+    let target = format!("/proc/{}/mem", pid);
+    let mut mem_file = File::open(target).map_err(crate::error::Memory::from)?;
+    let mut segments = Vec::with_capacity(headers.len());
+    for header in headers {
+        mem_file.rewind().map_err(crate::error::Memory::from)?;
+        let reader = BufReader::new(&mem_file);
+        let segment = X86_Segment::try_from((header, reader))?;
+        segments.push(Rc::new(segment.clone()));
+        if let X86_Segment::Linked(link) = segment {
+        ...
+            let lib = match Library::try_from(p.clone())
+        ...
+        linked
+                    .entry(
+                        link.header()
+                            .target()
+                            .expect("Linked segments shouuld ALWAYS have a valid target"),
+                    )
+                    .or_insert(MappedObject::new(lib))
+                    .extend(link);
+    }
+    Ok(Self {
+        pid,
+        segments: segments.into_boxed_slice(),
+        linked: linked.into_iter().map(|(k, v)| (k, Rc::new(v))).collect(),
+    })
+}
+\end{lstlisting}
+
+- parsing the headers
+
+
+- preparing the final map
+
+\section{Analyzer Module}
+\label{analyzer}
+
+\subsection{The analyzer trait}
+
+\subsection{diff\_analyzer implementation}
+
+\subsection{The Instruction type}
+
+\subsection{usage of the capstone crate and ffi}
+
+\subsection{extracting and matching the function addresses}
+
+\section{TUI program}
+
+\subsection{the command line interface}
+
+    - cli options
+    - autogenerated cli docs
+
+\subsection{the main interface}
+- usage
+
+- buffering the reader segments
+
+- ui capabilities
+
+
+\section{Enforcement of clean code principles}
+\begin{enumerate}
+    \item Forbidding of \verb|unsafe| code
+    
+    Although rust is by definition a memory safe language due to the enforcement of the borrow checker and it's rules \cite{TODO}. However those features can be bypassed by the usage of \verb|unsafe| code blocks which disable these protection features at the programmers request.
+    In the case of this project in order to enforce strict memory protection and avoid undefined behavior the \verb|unsafe_code| lint has been set to \verb|forbid| level which makes any usage of the unsafe blocks in the produced code emit a compile-time error which in no way can be overridden \cite{TODO - rust book}
+
+    \item  Denying the use of \verb|unwrap()| calls
+
+    One of the core features of the rust programming language is its verbosity in handling error cases, if a function can fail it usually returns a \verb|Result| which contains either the desired value or the error and needs to be handled appropriately \cite{TODO}. The same is applied for possible null values which hare handled with the \verb|Option| type which returns a \verb|None| variant to signify the lack of a result \cite{TODO}. 
+    Those enforcements can be quickly bypassed by calling \verb|.unwrap()| on a \verb|Result| or an \verb|Option| value which will force the program to produce the desired value or fail and panic in the other case.
+    To ensure better code quality and fewer panics in the implementation the \verb|unwrap_used| lint has been set at the \verb|deny| level. 
+    This makes use of any \verb|unwrap| function calls result in a compilation error which forces the programmer to either handle the possible errors and None value accordingly or use the more verbose \verb|.expect()| call which requires an explanation to be provided to why the program should not panic when unwrapping this value \cite{TODO rust book}. 
+    Furthermore by setting the \verb|expect_used| lint at a warning level the programmer will be still notified upon compilation that such method is not the best practice.
+
+    \item Requirement of code documentation and other lints
+
+    By setting the \verb|missing_docs| lint at a deny level the compiler will enforce that any public facing struct, enum, trait, and method needs to provide any documentation in order for the program to compile. This ensures that code not only need to be correct but also documented in order to be compiled and tested, which results in better documented and more maintainable code. 
+    Furthermore by setting more specific lints such as \verb|clippy::pedantic| or \verb|clippy::nursery| the programmer is warned about bad code practices such as duplication module name in function or struct names or using less readable patterns such as \verb|if a != b|.
+\end{enumerate}
+
+\section{Custom error types}
+
+Leveraging the use of the \verb|thiserror| crate \cite{tolnay_dtolnaythiserror_2024} the reader\ref{reader} and analyzer \ref{analyzer} modules expose custom error types which allow for better handling and displaying of any errors that occur. 
+A good example of this is trying to read the memory of a process running with privileged access as a regular user (see \ref{lst:verbose_err}). Normally the resulted panic message would contain only the IO error produced by the access denied system response but with custom error type the message is more verbose.
+
+\begin{lstlisting}[caption=\label{lst:verbose_err}"Error when trying to read the pid 1 process"]
+Running `target/release/spotter-bin --log=error 1`
+thread 'main' panicked at bin/src/main.rs:33:53:
+Analyzer should init: Builder(
+    Reader(
+        MemFile(
+            Parser(
+                Os { code: 13, kind: PermissionDenied, message: "Permission denied" }
+                ))))
+\end{lstlisting}
+
+Furthermore this allows any libraries that may depend on functions that emit such verbose errors to better respond to their occurrences and react accordingly. 
+A good example of this is in the x86\_64 map trait \ref{reader:map} implementation in which the error thrown on failure of parsing a file which is not in a compatible format is caught and only emitted as a warning message instead of causing the entire program to panic.
+
+\begin{lstlisting}[caption=\label{lst:err_handling}"Customm error handling example", language=Rust]
+let lib = match Library::try_from(p.clone()) {
+                Ok(lib) => lib,
+                Err(e) => {
+                    tracing::warn!(
+                        "failure to parse file {} skipping function extraction ({})",
+                        p.display(),
+                        e
+                    );
+                    continue;
+                }
+            };
+\end{lstlisting}
+
+Additionally by usage of custom error types the test suite of the program can be enhanced with purposefully panicking code which passes the test only on specific error types.
+
+\section{Tracing}
+
+By incorporating the \verb|tracing| \cite{tokio-rs_team_tokio-rstracing_2024} dependency into the reader \ref{reader} and analyzer \ref{analyzer} modules the exposed methods can produce tracing information which can be used and consumed by other libraries
+
+\begin{lstlisting}[language=Rust, caption="Code fragment showcasing conditionally emiting a warning"]
+if let Some(rep) = map.insert(addr, f.clone()) {
+    tracing::warn!("clashing addresses replaced {:?} with {:?}", rep, f);
+}
+\end{lstlisting}
+
+The binary module uses the \verb|tracing_subscriber| \cite{tokio-rs_team_tokiotracingtracing-subscriber_2024} crate to consume the data provided by it's function as well as it's dependencies and with the CLI setup to allow for trace level filtering the program can emit desired information to the end user.
+
+\begin{lstlisting}[breaklines=true, caption="Fraction of the warnings emitted by the program with the log setting at warning level"]
+$ cargo run --release -- --log=warn 5293
+...
+2025-01-05T15:27:26.763134Z  WARN func_map{lib="ld-linux-x86-64.so.2"}: memspotter_analyzer::diff_analyzer: clashing addresses replaced sbrk 0x22d10[139] with __sbrk 0x22d10[139]
+2025-01-05T15:27:26.763153Z  WARN func_map{lib="ld-linux-x86-64.so.2"}: memspotter_analyzer::diff_analyzer: clashing addresses replaced __GI_mprotect 0x24800[36] with mprotect 0x24800[36]
+2025-01-05T15:27:26.763172Z  WARN func_map{lib="ld-linux-x86-64.so.2"}: memspotter_analyzer::diff_analyzer: clashing addresses replaced access 0x241c0[55] with __access 0x241c0[55]
+2025-01-05T15:27:26.763191Z  WARN func_map{lib="ld-linux-x86-64.so.2"}: memspotter_analyzer::diff_analyzer: clashing addresses replaced __closedir 0x22e80[44] with closedir 0x22e80[44]
+2025-01-05T15:27:26.763211Z  WARN func_map{lib="ld-linux-x86-64.so.2"}: memspotter_analyzer::diff_analyzer: clashing addresses replaced __GI___fstatat 0x24240[76] with __GI___fstatat64 0x24240[76]
+\end{lstlisting}

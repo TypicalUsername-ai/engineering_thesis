@@ -1,10 +1,12 @@
 \documentclass[language=en,12pt]{aghdpl}
 % \documentclass[language=en,11pt]{aghdpl}  % praca w języku angielskim
-
+\usepackage{listings}
+\usepackage{hyperref}
+\usepackage{listings-rust}
 %---------------------------------------------------------------------------
 
-\author{Paweł Kłeczek}
-\shortauthor{P. Kłeczek}
+\author{Mateusz Domalewski}
+\shortauthor{M. Domalewski}
 
 %\titlePL{Przygotowanie bardzo długiej i pasjonującej pracy dyplomowej w~systemie~\LaTeX}
 %\titleEN{Preparation of a very long and fascinating bachelor or master thesis in \LaTeX}
@@ -13,8 +15,8 @@
 \titleEN{Analysis of code signatures in mapped memory of a process}
 
 
-\shorttitlePL{} % skrócona wersja tytułu jeśli jest bardzo długi
-\shorttitleEN{}
+\shorttitlePL{Poszukiwanie sygnatur kodu w zmapowanej pamięci procesu} % skrócona wersja tytułu jeśli jest bardzo długi
+\shorttitleEN{Analysis of code signatures in mapped memory of a process}
 
 
 % Dopuszczalne wartości[1,2]:
@@ -36,10 +38,10 @@
 %\department{Katedra Informatyki Stosowanej}
 %\department{Department of Applied Computer Science}
 
-\faculty{Wydział Elektrotechniki, Automatyki, Informatyki i Inżynierii Biomedycznej}
-%\faculty{Faculty of Electrical Engineering, Automatics, Computer Science and Biomedical Engineering}
+%\faculty{Wydział Elektrotechniki, Automatyki, Informatyki i Inżynierii Biomedycznej}
+\faculty{Faculty of Electrical Engineering, Automatics, Computer Science and Biomedical Engineering}
 
-\acknowledgements{}
+\acknowledgements{"Everything is open source when you can read assembly"}
 
 
 \begin{document}
@@ -48,16 +50,18 @@
 	\RedefinePlainStyle
 	
 	\setcounter{tocdepth}{2}
+	\include{abstract}
 	\tableofcontents
 	\clearpage
-	
-	\include{rozdzial1}
-	\include{rozdzial2}
-	\include{rozdzial3}
-	\include{tests}
-	
+    
+	\include{introduction}
+	\include{lit_review}
+	\include{implementation}
+    \include{results}
+    \include{conclusions}
+    
 	% itd.
-	% \appendix
+	\appendix
 	% \include{dodatekA}
 	% \include{dodatekB}
 	% itd.

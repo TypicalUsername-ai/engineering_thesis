@@ -156,7 +156,7 @@
 		\vspace*{1mm}
 		
 		{\sffamily\Large\itshape
-			\IfStrEqCase{\ThesisLanguage}{%
+			\IfStrEqCase{ThesisLanguage}{%
 				{pl}{\@titleEN}
 				{en}{\@titlePL}
 			}
@@ -310,7 +310,7 @@
 	sorting=none,
 	%
 	% Zastosuj styl wpisu bibliograficznego właściwy językowi publikacji.
-	language=autobib,
+	language=english,
 	autolang=other,
 	% Zapisuj datę dostępu do strony WWW w formacie RRRR-MM-DD.
 	urldate=iso8601,
@@ -324,7 +324,7 @@
 	% Ustawienia związane z polskimi normami dla bibliografii.
 	maxbibnames=3,
 	% Wybór silnika generowania bibliografii:
-%	backend=bibtex  % - jeżeli używamy BibTeX-a
+	%backend=bibtex  % - jeżeli używamy BibTeX-a
 	backend=biber   % - jeżeli używamy biber-a
 ]{biblatex}
 
