@@ -62,7 +62,7 @@ The tool should be usable as a standalone binary which should provide user with 
 \subsection{Architecture pattern}
 
 As the app's functionality is dependent on multiple components that depend on each other but can be separated excluding some common communication the service architecture was chosen for the task.
-As seen in the service diagram \ref{fig:modules} the tool should be comprised of three different modules.
+As seen in the service diagram \autoref{fig:modules} the tool should be comprised of three different modules.
 The reader module will be the most basic one which will interact with the process and the linked libraries and parse their contents. The Analyzer module will call on the reader module to provide the desired output which it will use to provide insights about the data read. The last module will be responsible for the interaction with the user and should provide a way for the user to interact with the generated insights.
 
 \begin{figure}
@@ -76,7 +76,7 @@ The reader module will be the most basic one which will interact with the proces
 
 Due to the tool's low level access and safety requirements the Rust programming language seems as the obvious choice as it is a safe systems-level language which also provides a rich typesystem and cargo - rust's integrated build tool and dependency manager. 
 Furthermore the language's vast ecosystem of open source packages (also known as crates) the project can make use of many useful tools to ease the development process.
-Lastly rust's borrow checker rules \cite{TODO} enforce program's memory safety which is crucial with interacting within such volatile environments.
+Lastly rust's borrow checker rules \cite{rust_foundation_rust-langrust_2024} enforce program's memory safety which is crucial with interacting within such volatile environments.
 
 \subsection{Limitations}
 

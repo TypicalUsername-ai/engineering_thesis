@@ -4,7 +4,7 @@
 
 \section{A note on modularity}
 
-The project as a whole was designed to be a application that allows for code analysis, however implementing abstractions from a level of reading bytes from process memory all the way to managing the interface's state resulted in the decision to split the deliverable into three separate entities named: reader, analyzer and bin (for binary). As the project was implemented in rust i was able to leverage rust's \verb|cargo| build system to easily manage all three projects as subdirectories
+The project as a whole was designed to be an application that allows for code analysis, however, implementing abstractions from a level of reading bytes from process memory all the way to managing the interface's state resulted in the decision to split the deliverable into three separate entities named: reader, analyzer, and bin (for binary). As the project was implemented in rust, i was able to leverage rust's \verb|cargo| build system to easily manage all three projects as subdirectories
 
 \begin{lstlisting}[caption="The basic project structure"]
 /memspotter
@@ -13,7 +13,7 @@ The project as a whole was designed to be a application that allows for code ana
     /bin
 \end{lstlisting}
 
-Furthermore to ease the usage and possible refactors i decided to use rust's \verb|trait| \footnote{\enquote{Traits are similar to a feature often called interfaces in other languages, although with some differences.} - The Rust Book} system to define shared function and type signatures which i could then implement for the data structures and abstractions of my choosing
+Furthermore, to ease the usage and possible refactors i decided to use rust's \verb|trait| \footnote{\enquote{Traits are similar to a feature often called interfaces in other languages, although with some differences.} - The Rust Book \cite{klabnik_traits_2023}} system to define shared function and type signatures which i could then implement for the data structures and abstractions of my choosing.
 
 \begin{lstlisting}[caption=\label{lst:arch}"a trait definition example", language=Rust,]
 /// Defines an architecture for the program
@@ -28,7 +28,7 @@ pub trait Arch: Debug + Clone + PartialEq + Eq {
 }    
 \end{lstlisting}
 
-as seen in \ref{lst:arch} the Arch trait can even defines no new functions, but allow for defining that each architecture has an associated pid, instruction and header types. This in turn can be used to ease the later abstractions. 
+as seen in \autoref{lst:arch} the Arch trait can even define no new functions but allow for defining that each architecture has an associated process id (or pid), instruction, and header types. This in turn can be used to ease the later abstractions. 
 
 \begin{lstlisting}[caption=\label{lst:segment}"The memory segment trait", language=Rust]
 /// generic trait for a allocated memory segment of a process
@@ -45,9 +45,9 @@ where
 }
 \end{lstlisting}
 
-A great example of such ease would be the memory segment trait \ref{lst:segment} which can just take a given architecture implementation and it's specific header type will be included too, and can even be referenced in the function signatures (see the \verb|header(&self)| function).
+A great example of such ease would be the memory segment trait \autoref{lst:segment} which can just take a given architecture implementation and it's specific header type will be included too, and can even be referenced in the function signatures (see the \verb|header(&self)| function).
 
-Such design choice additionally allows for different implementations to expose a common interface but also be extremely flexible in the implementations as. for example the apple based \verb|Mach-O| objects can implement it only for their own specific architecture but the \verb|x86_64| family of systems can implement header for both the 64 and 32-bit ELF file variations. Furthermore it also allows for easy differentiation between globally shared behavior and architecture-specific implementation as can be seen in \ref{lst:reader_structure}.
+Such design choice additionally allows for different implementations to expose a common interface but also be extremely flexible in the implementations, as, for example, the apple-based \verb|Mach-O| objects can implement it only for their own specific architecture, but the \verb|x86_64| family of systems can implement header for both the 64 and 32-bit ELF file variations. Furthermore, it also allows for easy differentiation between globally shared behavior and architecture-specific implementation, as can be seen in \autoref{lst:reader_structure}.
 
 \begin{lstlisting}[caption=\label{lst:reader_structure}"Structure of the reader module outlining separate trait and implementation folder"]
 /reader
@@ -81,15 +81,15 @@ Such design choice additionally allows for different implementations to expose a
     \label{fig:reader-traits}
 \end{figure}
 
-the reader module at it's core beside the Arch \ref{lst:arch} and Segment \ref{lst:segment} traits is represented by a total of 6 traits which dependency can be observed in \ref{fig:reader-traits}.
-\begin{enumerate}
+The reader module at its core beside the Arch \autoref{lst:arch} and Segment \autoref{lst:segment} traits is represented by a total of 6 traits which dependence can be observed in \autoref{fig:reader-traits}.
 
-    \item \label{reader:map}Map
+    \subsubsection{Map}
+    \label{reader:map}
 
-Map is the most top level trait and fully abstracts over the contents of the entire process memory as well as the linked library code.
-This trait allows access to the process pid, individual memory segments as described and read from the \verb|\proc\{pid}\maps| \cite{kerrisk_proc_pid_maps5_2024} specification.
-It also allows the user to access the individual mapped libraries of the process \ref{reader:mapped_lib}.
-It also defines special functions which return the special stack and heap segments \cite{TODO}.
+The map is the most top-level trait and fully abstracts the contents of the entire process memory as well as the linked library code.
+This trait allows access to the pid value of the process and the individual memory segments described and read from the \verb|\proc\{pid}\maps| \cite{kerrisk_proc_pid_maps5_2024} specification.
+It also allows the user to access the individual mapped libraries of the process \autoref{reader:mapped_lib}.
+It also defines special functions which return the special stack and heap segments \cite{kerrisk_memory_2010}.
     
 \begin{lstlisting}[caption=\label{lst:map}"The Memory Map Trait definition", language=Rust]
  /// Describes a mapping of process part header to memory segments
@@ -122,11 +122,12 @@ pub trait Map<A: Arch + 'static>: Sized + Clone {
 }   
 \end{lstlisting}
 
- \item \label{reader:mapped_lib} MappedLibrary
+ \subsubsection{MappedLibrary}
+ \label{reader:mapped_lib} 
 
-    This trait is an abstraction that represents a system shared library that has been mapped onto segments of a running process.
-    It defines methods that expose the actual library \ref{reader:library} as well as the ability to access the individual memory segments \ref{lst:segment}.
-    For ease of use in analysis it also defines methods for directly accessing the writeable and executable segments directly, as well a a function which allows for translating the address of a library's function \ref{reader:function} to an address in the process memory space.
+    This trait is an abstraction that represents a system-shared library that has been mapped onto segments of a running process.
+    It defines methods that expose the actual library \autoref{reader:library} as well as the ability to access individual memory segments \autoref{lst:segment}.
+    For ease of use in analysis it also defines methods for directly accessing the writeable and executable segments directly, as well a function which allows for translating the address of a library's function \autoref{reader:function} to an address in the process memory space.
 \begin{lstlisting}[caption=\label{lst:mapped_lib}"The MappedLibrary Trait definition", language=Rust]
  /// represents a memory segment that is linked from some library
 #[blanket::blanket(derive(Ref, Rc, Arc, Box))]
@@ -159,11 +160,12 @@ where
 }   
 \end{lstlisting}
   
-    \item \label{reader:library} Library
+    \subsubsection{Library}
+     \label{reader:library} 
     
     This trait is a step lower on the abstraction ladder as it allows for the interaction with a shared library object.
-    It exposes a definition of a specific implementation of the Function\ref{reader:function} trait that the library uses as well as methods that allow dumping the entire executable section memory as well as access to the range of the \verb|.text| section of the library file which holds the assembly code for the library's functions \cite{TODO}.
-    Furthermore this trait allows for getting the function code from the library object for a function with a specific name as well as some helper methods such as \verb|fn name(&self) -> String| which returns the name of the shared library for ease of use.
+    It exposes a definition of a specific implementation of the Function\autoref{reader:function} trait that the library uses as well as methods that allow dumping the entire executable section memory, as well as access to the range of the \verb|.text| section of the library file which holds the assembly code for the library's functions \cite{kerrisk_memory_2010}.
+    Furthermore, this trait allows for getting the function code from the library object for a function with a specific name as well as some helper methods such as \verb|fn name(&self) -> String| which returns the name of the shared library for ease of use.
     
 \begin{lstlisting}[caption=\label{lst:library}"The Library Trait definition", language=Rust]
 /// Trait for interacting with binary linkable objects e.g. `.so` files
@@ -192,11 +194,13 @@ pub trait Library<A: Arch>: Debug + Sized + PartialEq + Eq + Clone {
     fn text_range(&self) -> std::ops::Range<u64>;
 }
 \end{lstlisting}  
-    \item \label{reader:function} Function
+
+    \subsubsection{Function}
+    \label{reader:function} 
     
-    This trait defines the shared behavior of the Functions that a given library contains.
+    This trait defines the shared behavior of the functions that a given library contains.
     It allows for both direct assembly code access to the whole function as well as specific ranges of it.
-    Furthermore it exposes methods that allows for the name, size and more importantly location of the function in both a source file by providing the file offset as well as in a mapped process context by providing the virtual memory address.
+    Furthermore, it exposes methods that allow for the name, size, and, more importantly, location of the function in both a source file and mapped process context by providing the file offset and the virtual memory address.
 
 \begin{lstlisting}[caption=\label{lst:function}"The Function Trait definition", language=Rust]
 /// trait representing a function, usually from a [Library] context
@@ -223,11 +227,12 @@ pub trait Function<A: Arch>: Debug + Clone {
     fn file_offset(&self) -> u64;
 }
 \end{lstlisting}
+
+    \subsubsection{Header}
+     \label{reader:header}
     
-    \item \label{reader:header}Header
-    
-    This trait defines the way of interaction with entries of the \verb|\proc\{pid}\maps| entries as defined in \cite{kerrisk_proc_pid_maps5_2024}.
-    The included methods allow for accessing the mapped region's permissions, process memory range, the source file target as well as its offset and size. 
+    This trait defines the way of interaction with the entries of the \verb|\proc\{pid}\maps| entries as defined in \cite{kerrisk_proc_pid_maps5_2024}.
+    The included methods allow accessing the mapped region's permissions, process memory range, the source file target, and its offset and size. 
 \begin{lstlisting}[caption=\label{lst:header}"The Header Trait definition", language=Rust]
 /// Struct representing a single /mem/\<pid\>/maps entry
 ///
@@ -251,15 +256,14 @@ pub trait MapHeader: std::fmt::Debug + Eq + PartialEq + Clone + Ord {
 }    
 \end{lstlisting}
  
-\end{enumerate}
 
 
 \subsection{The header parsing process}
 
-Firstly, the header is contained in one line and therefore can be derived from a string reference. This reference can then be split by space, however the space lengths can be varying and therefore the splitter needs to filter out the empty string fragments created by splitting multiple spaces joined together.
-Next, values such as start, end or file offset are encoded in base 16 strings and therefore need to be parsed into integer types. 
-Additionally the function employs a safety check to verify that the end is later than the start which ensures that the header string parsed is not malformed. 
-Furthermore not all of the headers have a target section and therefore the last entry in splits section can be nonexistent.
+Firstly, the header is contained in one line and therefore can be derived from a string reference. This reference can then be split by space; however, the space lengths can be varying, and therefore the splitter needs to filter out the empty string fragments created by splitting multiple spaces joined together.
+Next, values such as start, end, or file offset are encoded in base 16 strings and therefore need to be parsed into integer types. 
+Additionally, the function employs a safety check to verify that the end is later than the start, which ensures that the header string parsed is not malformed. 
+Furthermore, not all of the headers have a target section, and therefore the last entry in splits section can be nonexistent.
 
 \begin{lstlisting}
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -291,17 +295,18 @@ Furthermore not all of the headers have a target section and therefore the last 
 \end{lstlisting}
 
 \subsection{Memory Segments}
+\label{reader:segment}
 
-At the most base level the x86 Memory segment implementation is an enum which variants hold the respective segment structs. Most of those are just containers of bytes read from the memory.
+At the most base level, the x86 memory segment implementation is an enum which variants hold the respective segment structs. Most of those are just containers of bytes read from the memory.
 However, the Linked segment variant holds a special implementation as this segment contains also an extra check to verify whether the target in the provided header is a valid file. 
 The program uses the \verb|assert!| macro which will cause the program to panic when it is not fulfilled.
-Furthermore separation segments into separate structs allows for defining special behavior, such as bypassing the memory reads and not inluding those structs in \verb|vvar| and \verb|vdso| segments as these are kernel space modules and cannot be read without privileged access (\cite{TODO}).
+Furthermore, separation of segments into separate structs allows one to define special behavior, such as bypassing the memory reads and not including those structs in the \verb| vvar | and \verb| vdso | segments, as these are kernel space modules and cannot be read without privileged access (\cite{kerrisk_vdso7_2024}).
 
 \subsection{Library implementation}
 
-Firstly the specific layout of the library struct has been designed to minimize the memory impact of libraries.
-Additionally the leveraging of smart pointer structures such as \verb|Box| or \verb|Rc| ensures that the actual contents of the memory live on the heap instead of the stack and reduce the memory footprint of the library struct.
-Additionally the usage of reference counting pointers allows the consumers  of this struct to just clone the pointer and access the memory without memory heave copying operation or juggling pointers and their lifetimes to satisfy rust's memory protection constraints.
+Firstly, the specific layout of the library struct has been designed to minimize the memory impact of libraries.
+Additionally, leveraging smart pointer structures such as \verb|Box| or \verb|Rc| ensures that the actual contents of the memory live on the heap instead of the stack and reduce the memory footprint of the library struct.
+Additionally, the usage of reference counting pointers allows the consumers of this struct to just clone the pointer and access the memory without memory heave copying operation or juggling pointers and their lifetimes to satisfy rust's memory protection constraints.
 
 \begin{lstlisting}
 /// representation for shared object parsed with the [goblin] crate
@@ -316,9 +321,9 @@ pub struct SharedObject {
 }
 \end{lstlisting}
 
-As the library is usually inferred from a path included in the process memory segment header the library struct needs to parse this value to create itself which is done by implementing the \verb|try_from| method for the path buffer.
-This method firstly leverages the file io access to read the file's contents to the provided buffer and then prasing the file's contents using the \verb|goblin| crate \cite{m4b_m4bgoblin_2024}.
-This function call can also throw an error which will be propagated through the function call and let user know that the file is not a valid executable or a shared object.
+As the library is usually inferred from a path included in the process memory segment header, the library struct needs to parse this value to create itself, which is done by implementing the \verb|try_from| method for the path buffer.
+This method first leverages file IO access to read the file's contents to the provided buffer and then prasing the file's contents using the \verb|goblin| crate \cite{m4b_m4bgoblin_2024}.
+This function call can also throw an error, which will propagate through the function call and will let the user know that the file is not a valid executable or a shared object.
 
 \begin{lstlisting}
     fn try_from(value: PathBuf) -> Result<Self, Self::Error> {
@@ -340,12 +345,12 @@ This function call can also throw an error which will be propagated through the 
     }
 \end{lstlisting}
 
-Afterwards the the function calls the library's \verb|obj_text_ranges| \ref{} function which parses the provided object and extracting both text section offsets which allow to access sections of the file which contain the assembly functions that the library contains.
-The function also provides more safety check as it returns an error when the provided object does not contain a .text section which makes the elf object invalid and unusable in the program context, as this section is responsible for containing the actual assembly code.
-Additionally that function call also returns the range of the virtual memory to which the exported .text section maps in the process memory which will be immensely useful to match the code and function extracted from the library to code and functions extracted from the process memory.
-This function also leverages that the object's produced by the gobl;in parser have enum variants representing different architecture and object types which opens up the possibility to provide architecture-specific parsing method while using a single function call.
+Afterwards the function calls the library's \verb|obj_text_ranges| (\autoref{lst:obj-text-ranges}) function which parses the provided object and extracts both text section offsets, which allow access sections of the file which contain the assembly functions that the library contains.
+The function also provides more safety check as it returns an error when the provided object does not contain a \verb|.text| section which makes the elf object invalid and unusable in the program context, as this section is responsible for containing the actual assembly code.
+Additionally, that function call also returns the range of the virtual memory to which the exported \verb|.text| section maps in the process memory which will be immensely useful to match the code and function extracted from the library to code and functions extracted from the process memory.
+This function also leverages the fact that the objects produced by the goblin parser have enum variants representing different architecture and object types, which opens up the possibility of providing an architecture-specific parsing method while using a single function call.
 
-\begin{lstlisting}
+\begin{lstlisting}[caption=\label{lst:obj-text-ranges}"The function returning object text and virtual memory ranges"]
     /// returns the real and virtual memory adresses for the start of the `.text` elf file section
     //#[instrument]
     fn obj_text_ranges(
@@ -373,10 +378,10 @@ This function also leverages that the object's produced by the gobl;in parser ha
     }
 \end{lstlisting}
 
-Lastly before returning the library object the function uses the \verb|parse_object| function to read from the object file all the functions that the library uses and then creates Function struct templates and later uses those templates to create actual function objects which are attached to the library struct as an array of pointers to these structs due to the usage of rc smart pointer.
+Lastly, before returning the library object, the function uses the \verb|parse_object| function to read from the object file all the functions that the library uses and then creates Function struct templates and later uses those templates to create actual function objects which are attached to the library struct as an array of pointers to these structs due to the usage of rc smart pointer.
 In the x86 implementation his function makes heavy use of first the elf file's symbol table to get all the symbols that the library provides and filter it to provide only assembly functions which have a non-zero size.
-Later the obtained symbols are translated into FunctionTemplate \ref{} objects with the usage of the provided text and virtual memory sectionns, and the size and symbol value obtained from the symbol table. 
-The symbol value is later queried against elf's string table which allows to obtain the function name which concludes the creation of the function template.
+Later, the symbols obtained are translated into FunctionTemplate (\autoref{lst:functemplate}) objects with the usage of the provided text and virtual memory sections, and the size and symbol value obtained from the symbol table. 
+The symbol value is later queried against ELF files string table which allows to obtain the function name which concludes the creation of the function template.
 After all of the templates are obtained they are collected into a vector struct and returned successfully from the function.
 
 \begin{lstlisting}[language=Rust]
@@ -427,8 +432,8 @@ After all of the templates are obtained they are collected into a vector struct 
 
 \subsection{Function templates and Assembly functions}
 
-Due to the Functio parsing process being split in two parts initially the Library parsing function only creates the function template instances \ref{} that contain only the function data that has been extracted from the function symbol as well as the function parent object's string and symbol table
-\begin{lstlisting}
+Due to the function parsing process being split in two parts initially the Library parsing function only creates the function template instances (\autoref{lst:functemplate}) that contain only the function data that have been extracted from the function symbol, as well as the function parent object's string and symbol table.
+\begin{lstlisting}[caption=\label{lst:functemplate}"The Function template struct", language=Rust]
 #[derive(Clone, Debug)]
 pub struct FuncTemplate {
     pub name: String,
@@ -438,8 +443,8 @@ pub struct FuncTemplate {
 }
 \end{lstlisting}
 
-The fully qualified function struct used in the library \ref{} code trades the offset and size fields for the start and end fields and additionally contains a box pointer to the function's bytes in the memory field of the struct.
-\begin{lstlisting}
+The fully qualified function struct used in the library code (\autoref{lst:so-function}) trades the offset and size fields for the start and end fields and additionally contains a box pointer to the function's bytes in the memory field of the struct.
+\begin{lstlisting}[caption=\label{lst:so-function}"The x86 shared object function struct", language=Rust]
 /// represents a singular function from the [SharedObject]
 #[derive(Clone)]
 pub struct SoFunction {
@@ -451,7 +456,7 @@ pub struct SoFunction {
 }
 \end{lstlisting}
 The actual function struct creation process is started by providing the FuncTemplate and byte access to the library code. 
-Afterwards the function creation method uses the data provided in the template to read the needed bytes from the library code and provide the function's context both within the file as well as the virtual address space by providing the start, end and memory address fields. 
+Afterwards the function creation method uses the data provided in the template to read the needed bytes from the library code and provides the function's context both within the file as well as the virtual address space by providing the start, end and memory address fields. 
 \begin{lstlisting}
     impl SoFunction {
     /// creates a new insrance of the struct
@@ -474,8 +479,8 @@ Afterwards the function creation method uses the data provided in the template t
 \subsection{the library to memory mapping}
 
 In order to facilitate verification of instructions in memory to instructions in shared objects the MappedLibrary struct has to be set up with care.
-Firstly the struct needs to be extendable as a single library can be mapped to multiple process memory segments.
-However this cannot be so straightforward and in this case if the segment supplied for extension does not place next in the process memory layout the program will panic in order to prevent inconsistencies in memory order and instruction analysis.
+Firstly, the struct needs to be extendable as a single library can be mapped to multiple process memory segments.
+However, this cannot be so straightforward and in this case if the segment supplied for extension does not place next in the process memory layout, the program will panic in order to prevent inconsistencies in memory order and instruction analysis.
 \begin{lstlisting}[caption=\label{mapped_lib:extend}"The extend function for the MappedLibrary struct", language=Rust, breaklines=true]
 /// extends the linked memory with a provided segment
     pub fn extend(&mut self, segment: Linked<A>) -> &mut Self {
@@ -489,7 +494,7 @@ However this cannot be so straightforward and in this case if the segment suppli
         self
     }
 \end{lstlisting}
-Furthermore as the initializing function for this struct takes a valid existing Library \ref{lst:library} object it leaves this struct's only responsibility to align the library code with the segments.
+Furthermore, as the initializing function for this struct takes a valid existing Library \autoref{lst:library} object, it leaves this struct's only responsibility to align the library code with the segments.
 \begin{lstlisting}[caption=\label{mapped_lib:new}"The creator function for the MappedLibrary struct", language=Rust, breaklines=true]
  /// initializes a new instance from a library object
     #[must_use]
@@ -501,8 +506,8 @@ Furthermore as the initializing function for this struct takes a valid existing 
     }
 \end{lstlisting}
 
-Leveraging both the Segment \ref{} and Library \ref{} traits this struct can successfully bridge the virtual memory addresses from the shared object into real mapped addresses by the usage of mapped\_address function.
-Furthermore this function is also adaptable to work on both shared objects and regular executables which do not leverage the virtual addresses and therefore file offset should not be applied.
+Using both the segment (\autoref{reader:segment}) and the mapped library (\autoref{reader:library}) traits, this struct can successfully bridge the virtual memory addresses from the shared object to the real mapped addresses by using the \verb| mapped_address | \autoref{mapped_lib:mapped_addr} function.
+Furthermore, this function is also adaptable to work on both shared objects and regular executables that do not leverage the virtual addresses, and therefore file offset should not be applied.
 
 \begin{lstlisting}[caption=\label{mapped_lib:mapped_addr}"The mapped\_address function for the MappedLibrary struct", language=Rust, breaklines=true]
 fn mapped_address(&self, func: &<Self::Library as Library<A>>::Function) -> u64 {
@@ -518,13 +523,13 @@ fn mapped_address(&self, func: &<Self::Library as Library<A>>::Function) -> u64 
 
 \subsection{x86\_64 Map implementation}
 
-After the header parsing process the program opens the mem file.
-Then for each of the header it first rewinds the memory file pointer to its starting position.
-Then the method tries to create a memory segment \ref{lst:segment} specifically the x86 implementation of said interface \ref{lst:x86_segment} and propagates any encountered errors using the \verb|?| operator \cite{TODO}.
-Afterwards the segment is wrapped into an Rc (reference counting pointer) which allows for easier access to the structure and more efficient memory usage. 
-Then if the created segments ore of \verb|Linked| variant additional code tries to access the referenced file and create a MappedLibrary from it.
-Additionally there the linked entries are extenden which mean that all segments of the linked object will be referencing a single library instance.
-Lastly it is important to notice how rust's mutability rules are enforced - since the code creating the linked HashMap specifies the struct as mutable we cannot put them as-is into the ready map.
+After the header parsing process, the program opens the mem file.
+Then, for each of the headers, it first rewinds the memory file pointer to its starting position.
+The method then tries to create a memory segment \autoref{lst:segment} specifically the x86 implementation of the interface \autoref{lst:segment} and propagates any errors encountered using the operator \verb|?|.
+Afterwards, the segment is wrapped into an Rc (reference counting pointer), which allows for easier access to the structure and more efficient memory usage. 
+Then if the created segments are of \verb|Linked| enum variant, additional code tries to access the referenced file and create a MappedLibrary from it.
+Additionally, the linked entries are extended, which means that all segments of the linked object will refer to a single library instance.
+Lastly, it is important to notice how rust's mutability rules are enforced - since the code creating the linked hash map specifies the struct as mutable we cannot put them as-is into the ready map.
 To match both the type and the non-mutability we have to iterate over the entries and wrap them in RC pointers too, they are static for the program lifetime and cannot be internally modified. 
 
 \begin{lstlisting}[caption=\label{lst:map_from_pid}"Excerpt from x86\_64 Map's from\_pid function", language=Rust, breaklines=true]
@@ -570,11 +575,12 @@ pub fn from_pid(pid: <X86_64 as crate::Arch>::Pid) -> Result<Self, crate::error:
 \subsection{The analyzer trait}
 \label{analyzer:trait}
 
-The analyzer trait lies at the core of the analyzer crate and is responsible for providing a human readable output of the data read by the reader trait as well as providing some context to the read instructions. As it can be seen in the trait definition the only trait bounds \ref{}|\cite{} for the defined types are either \verb|Display| or \verb|Error| traits which allow basic interaction for any other programs.
-Furthermore the trait defines the necessary methods for accessing the data with \verb|lib_instructions| and \verb|lib_context| methods which provide either the raw or context-annotated instruction access to specific libraries. 
-Additionally the \verb|libraries| provide an easy access to the all included library \ref{} instances and a helper method to quickly access the main library of the process.
+The analyzer trait lies at the core of the analyzer crate and is responsible for providing a human-readable output of the data read by the reader trait, as well as providing some context to the read instructions. 
+As can be seen in the trait definition, the only trait bounds \autoref{lst:analyzer} for the defined types are either \verb|Display| or \verb|Error| traits, which allow basic interaction for any other programs.
+Furthermore, the trait defines the necessary methods for accessing the data with the \verb| lib_instructions| and \verb| lib_context| methods, which provide access to raw or context-annotated instructions for specified libraries. 
+Additionally, \verb|libraries| provide easy access to all included library (\autoref{reader:library}) instances and a helper method to quickly access the main library of the process.
 
-\begin{lstlisting}
+\begin{lstlisting}[caption=\label{lst:analyzer}"The analyzer trait", language=Rust]
     /// trait that defines the minimum functionality of different analyzers
 pub trait Analyzer<M, A>
 where
@@ -603,12 +609,12 @@ where
 
 \subsection{diff\_analyzer implementation}
 
-The analyzer trait implementation i settled on was aimed to provide context through differences between the code in the memory and the assembly code in the libraries.
-At it's core i decided to use the capstone \cite{} disassembly framework as well as its rust bindings from the \verb|capstone-rs| crate \cite{finkenauer_capstone-rustcapstone-rs_nodate}.
-The first stem in analyzer creation is to initialize the aforementioned dissasembler with the specified architecture for which it is implemented as well as setting the assembly syntax to intel and enabling detailed disassembly.
-As the capstone disassembler initialization can also result in an error the cration function takes that into account and propagates it to the caller wrapped in its custom error type.
-As the next step the function uses the provided process id to build the process memory map \ref{reader:map} and propagate any possible errors that may have occurred to to the caller.
-Last step of note in the initialization process is the invocation of the \verb|create_func_map| function.
+The analyzer trait implementation was aimed to provide context through differences between the code in the memory and the assembly code in the libraries.
+At its core i decided to use the capstone \cite{capstone-engine_team_capstone-enginecapstone_2022} disassembly framework as well as its rust bindings from the \verb|capstone-rs| crate \cite{finkenauer_capstone-rustcapstone-rs_nodate}.
+The first stem in analyzer creation is to initialize the aforementioned disassembler with the specified architecture for which it is implemented, as well as setting the assembly syntax to intel and enabling detailed disassembly.
+As the capstone disassembler initialization can also result in an error, the creation function takes that into account and propagates it to the caller wrapped in its custom error type.
+As the next step, the function uses the provided process id to build the process memory map \autoref{reader:map} and propagate any possible errors that may have occurred to the caller.
+The last step of note in the initialization process is the invocation of the \verb|create_func_map| function.
 
 \begin{lstlisting}
     /// tries to initialize the analyzer from a provided process id
@@ -631,9 +637,9 @@ Last step of note in the initialization process is the invocation of the \verb|c
     }
 \end{lstlisting}
 
-This function is responsible for creating a HashMap structure which will allow the analyzer to easily access functions based on their process memory address.
-To do this the method iterates over every function in every library, then extracts the function's mapped memory address using the \verb|mapped_address| \ref{mapped_lib:mapped_addr} function.
-Furthermore to avoid address clashing only the latest read function is inserted to each address however this process is made transparent by emitting a warning to the logs notifying that a function is being replaced in the table.
+This function is responsible for creating a hash map structure which will allow the analyzer to easily access functions based on their process memory address.
+To do this, the method iterates over every function in every library and then extracts the function's mapped memory address using the \verb|mapped_address| \autoref{mapped_lib:mapped_addr} function.
+Furthermore, to avoid address clashing, only the latest read function is inserted to each address; however, this process is made transparent by emitting a warning to the logs notifying that a function is being replaced in the table.
 
 \begin{lstlisting}
     fn create_func_map(memmap: &x86_64::Map) -> HashMap<u64, Rc<x86_64::Function>> {
@@ -655,8 +661,8 @@ Furthermore to avoid address clashing only the latest read function is inserted 
 
 \subsection{The Instruction and Insight}
 
-As seen in the analyzer trait \ref{analyzer:trait} the implementation needs a defined Instruction type. 
-The type implemented for the diff analyzer implementation has contains only the three most important instruction information - the instruction address, mnemonic (such as \verb|mov|) and the instruction operands which are the arguments passed to the instruction.
+As seen in the analyzer trait \autoref{analyzer:trait}, the implementation needs a defined instruction type. 
+The type implemented for the diff analyzer implementation contains only the three most important instruction information - the instruction address, mnemonic (such as \verb|mov|) and the instruction operands which are the arguments passed to the instruction.
 
 \begin{lstlisting}
 /// represents a single intel type instruction
@@ -671,8 +677,8 @@ pub struct Instruction {
 }
 \end{lstlisting}
 
-The creation of the Instruction instance from a capstone generated \verb|Insn| type is rather straight forward as the function just reads and calls unwrap on the instruction fields. 
-To avoid the program panicking the unbwrap call substitutes a default string if the call would fail to avoid panic, however the calls are guaranteed to not fail per capstone-rs documentation as the avail;ability of them is gated by the \verb|detail| option of the dissasembler which is set to true in the \verb|diff_analyzer| initialization.
+The creation of the Instruction instance from a capstone generated \verb|Insn| type is rather straightforward, as the function just reads and calls unwrap on the instruction fields. 
+To avoid the program panicking the unwrap call substitutes a default string if the call would fail to avoid panic; however, the calls are guaranteed to not fail per capstone-rs documentation as the avail;ability of them is gated by the \verb|detail| option of the disassembler which is set to true in the \verb|diff_analyzer| initialization.
 
 \begin{lstlisting}
 impl<'a> From<&Insn<'a>> for Instruction {
@@ -688,34 +694,48 @@ impl<'a> From<&Insn<'a>> for Instruction {
 }
 \end{lstlisting}
 
-TODO
+The insight is a basic container containing the two difference structs one for the instruction and one for the operands (\autoref{lst:insight}). 
+This is used to differentiate between the cases where the arguments and/or the mnemonic differ. 
+This struct relies on the Difference struct which is a basic enum struct that provides two variants, either \verb|Same| (containing a single type) or \verb|Different| containing the two differing types (see \autoref{lst:difference}).
 
-\subsection{usage of the capstone crate and ffi}
+\begin{lstlisting}[caption=\label{lst:insight}"The insight struct definition"]
+    #[derive(Debug)]
+pub struct Insight {
+    ins: Difference<String>,
+    ops: Difference<String>,
+}
+\end{lstlisting}
 
-As outlined in Section \ref{clean_code} the usage of \verb|unsafe| code inthe project is forbidden, however this does not propagate to the project's dependencies.
-The most notorious breach of this rul;e occurs in the capstone-rs crate as it exposes binding for the capstone C library \cite{finkenauer_capstone-rustcapstone-rs_nodate}.
-This however is rather necessary as there is no way of calling a foreign function interface (ffi) and guarantee rust's memory safety rules, hence the usage of unsafe code there is necessary.
-Furthermore to ease the threat of memory leakage, the capstone-rs crate contains tests and the capstone framework itself is a well maintained open source library which actively deals with any program issues.
+\begin{lstlisting}[caption=\label{lst:difference}"The Difference generic struct definition"]
+    /// basic struct used for represneting whether two values differ or are the same
+#[derive(Debug)]
+pub enum Difference<T: Eq + PartialEq> {
+    /// contains the single value from both inputs
+    Same(T),
+    /// contains the both different inputs
+    Different(T, T),
+}
+\end{lstlisting}
+
+\subsection{usage of the capstone crate and FFI}
+
+As outlined in Section \autoref{clean_code} the usage of \verb|unsafe| code in the project is forbidden; however, this does not propagate to the project's dependencies.
+The most notorious breach of this rule occurs in the capstone rs crate, as it exposes binding to the capstone C library \cite{finkenauer_capstone-rustcapstone-rs_nodate}.
+This, however, is rather necessary as there is no way of calling a foreign function interface (ffi) and guarantee rust's memory safety rules, hence the usage of unsafe code there is necessary.
+Furthermore, to ease the threat of memory leakage, the capstone-rs crate contains tests and the capstone framework itself is a well-maintained open source library which actively deals with any program issues.
 
 \subsection{extracting and matching the function addresses}
 
 The core of the analyzer implementation functionality is comparing the memory code to the library code, and in order to do it the program has to know when to start matching which function in the memory instructions. 
-In order to do that the program checks every address that it encounters against the previously created HashMap of function start addresses \ref{}.
-If such an address is found the program loads the function from the library object and then disassembles it using the same disassembler it used for the memory code.
+In order to do that, the program checks every address it encounters against the previously created hash map of the functions and their start addresses (\autoref{lst:lib-context}).
+If such an address is found, the program loads the function from the library object and then disassembles it using the same disassembler it used for the memory code.
 It also appends the function name to the context of the instruction to mark the function start.
-Then the disassembled instructions are loaded into an iterator and kept outside the instruction loop.
-Afterwards on every memory instruction encountered the program takes one instruction from the function instruction iterator and uses it for comparison as the addresses should match. 
-Those two instructions are then used to generate the instruction Insight which provides information whether the instructions match addresses, mnemonics and operands.
+Then, the disassembled instructions are loaded into an iterator and kept outside the instruction loop.
+Afterwards on every memory instruction encountered, the program takes one instruction from the function instruction iterator and uses it for comparison as the addresses should match. 
+Those two instructions are then used to generate the Insight instruction (\autoref{lst:insight}), which provides information on whether the instructions match addresses, mnemonics, and operands.
 This information is then appended to the context being created and returned along with the instruction.
 
-\begin{lstlisting}
-    lazy_static! {
-    static ref FUNC_CALLS: [&'static str; 4] = ["jmp", "je", "jne", "call"];
-}
-
-\end{lstlisting}
-
-\begin{lstlisting}
+\begin{lstlisting}[caption=\label{lst:lib-context}"Function for providing conxtextualized library instructions", language=Rust]
     fn lib_context(
         &self,
         lib: &Rc<x86_64::MappedObject>,
@@ -759,14 +779,34 @@ This information is then appended to the context being created and returned alon
     }
 \end{lstlisting}
 
+Furthermore, every instruction is checked against instructions that allow the code to jump to or call any other memory locations.
+The mnemonics of these functions are predefined in the program, and using the \verb| lazy_static | \cite{lobel_rust-lang-nurserylazy-static_2020} crate, they are generated and allocated at compile time to speed up the analysis process.
+Then if such an instruction is encountered, the program performs a lookup on the functions' hash map and, if successful, appends the name of the function being called to the context.
+If such a function cannot be found, the program inserts the address being called into the context to signify its importance instead.
+
+\begin{lstlisting}
+    lazy_static! {
+    static ref FUNC_CALLS: [&'static str; 4] = ["jmp", "je", "jne", "call"];
+}
+\end{lstlisting}
+
 \section{TUI program}
+
+The final part of the project is the binary that is to be used by the end user. 
+This consists of two main parts: the command line interface used to invoke the binary and provide options, and the main interface, which should show the generated information.
+For the command line interface, i decided to use the clap \cite{clap-rs_team_clap-rsclap_2024} library as it is a standard in the rust's ecosystem, and for the user interface i have decided to stick to the terminal and decided to use ratatui \cite{ratatui_team_ratatuiratatui_2024} to create a terminal user interface.
 
 \subsection{the command line interface}
 
-    - cli options
+Clap (command-line argument parser) leverages the power of rust's macros and annotations to provide a clear yet verbose way of defining the structure of argument that can be passed to the binary.
+The first step to implementation is annotating the structure with the macro \verb| #[derive(Parser)]|.
+Afterwards, by using the \verb|#[command(version, about)]| macro, the library automatically generates the \verb|--version| and \verb|--help| commands for the parser struct.
+This makes it significantly better to provide such conveniences for the end user as the contents of these commands will be automatically updated if the structure of the required commands is altered.
+This results in the user having an easy way to access how the program works (as seen in \autoref{fig:cli-help}).
+Additionally, this functionality is extended to help with bad inputs as unexpected parameters, or not inputting the necessary arguments will also automatically point the user to the required parameters and the help command.
 
-\begin{lstlisting}
-    #[derive(Parser, Debug)]
+\begin{lstlisting}[caption=\label{tui:cli-args}"The command line arguments struct", language=Rust]
+#[derive(Parser, Debug)]
 #[command(version, about)]
 struct Args {
     #[arg(required = true, value_name = "PROCESS_ID", index = 1)]
@@ -780,8 +820,10 @@ struct Args {
     pub log_level: Level,
 }
 \end{lstlisting}
-    
-    - autogenerated cli docs
+
+Furthermore, clap also allows for specifying whether the arguments are required, at which position should they be placed (as in \verb|process_id| in \autoref{tui:cli-args}) for positional arguments.
+For flags, the macro system can feature a long and short flag name, description, and even a default value.
+Lastly, such setup requires no string parsing manually by the developer as the parsing is automatically inferred from the structs and available methods.
 
     \begin{figure}
         \centering
@@ -791,40 +833,77 @@ struct Args {
     \end{figure}
 
 \subsection{the main interface}
-- usage
 
-- buffering the reader segments
+After the program successfully launches, the user is shown the main interface, which consists of three parts: the code section, the picker section, and the header section.
+The header is responsible for showing the id of the process being analyzed as well as the basic usage of the application.
+The code and picker section alternate between active and passive states, which are changed by using the left and right arrow buttons.
+The section that is currently active will take the vertical arrow button input for scrolling and active section selection. 
+The code section is a window into the assembly instructions of the currently open linked library, it allows for scrolling and highlights the actively selected item and highlights all of the generated insights side by side with the respective instructions.
+The picker section is responsible for facilitating user navigation; there the user can change which library to view in the code section.
+Additionally, by detecting for the usage of the tab key when active the picker section transforms into a list of available function symbols in the active library, which allows the end user for easy jump across the library's code.
+The highlight of this interface implementation is the management of the code section state as it needs to hold the entirety of assembly instructions for the library, which can be in tens of thousands of annotated instructions.
+As the use interface in terminal interfaces needs to be fully refreshed upon every interaction, reloading this large amounts of code initially caused the application to significantly lag.
+To combat this the code section has a given buffer size and offset, and through the use of own scroll functions (\autoref{lst:tui-scroll}) the buffer is adjusted when needed keeping the unseen parts of code from hindering the user interface's performance.
 
-- ui capabilities
+\begin{lstlisting}[caption=\label{lst:tui-scroll}"Custom overlays over the basic scroll functions", language=Rust]
+    fn select_next(&mut self) {
+        if let Some(i) = self.state.selected() {
+            let diff = self.ctx_size - i;
+            if diff <= self.render_cutoff {
+                let select_offset = i - self.state.offset();
+                self.offset += select_offset;
+                self.state.select(Some(select_offset));
+                *self.state.offset_mut() = 0;
+            } else {
+                self.state.select_next();
+            }
+        } else {
+            self.offset = 0;
+            self.state.select(Some(0));
+        }
+    }
 
+    fn select_previous(&mut self) {
+        if let Some(i) = self.state.selected() {
+            if i == 0 && self.offset != 0 {
+                self.offset = self.offset.saturating_sub(self.render_cutoff);
+                self.state.select(Some(self.render_cutoff));
+                *self.state.offset_mut() = self.render_cutoff;
+            } else {
+                self.state.select_previous();
+            }
+        } else {
+            self.offset = 0;
+            self.state.select(Some(0));
+        }
+    }
+\end{lstlisting}
 
 \section{Enforcement of clean code principles}
 \label{clean_code}
 
-\begin{enumerate}
-    \item Forbidding of \verb|unsafe| code
+    \subsection{Forbidding of unsafe code}
     
-    Although rust is by definition a memory safe language due to the enforcement of the borrow checker and it's rules \cite{TODO}. However those features can be bypassed by the usage of \verb|unsafe| code blocks which disable these protection features at the programmers request.
-    In the case of this project in order to enforce strict memory protection and avoid undefined behavior the \verb|unsafe_code| lint has been set to \verb|forbid| level which makes any usage of the unsafe blocks in the produced code emit a compile-time error which in no way can be overridden \cite{TODO - rust book}
+    Although rust is by definition a memory safe language due to the enforcement of the borrow checker and it's rules \cite{klabnik_rust_2023}. However, these features can be bypassed by using \verb|unsafe| code blocks, which disable these protection features at the programmer's request.
+    In the case of this project, in order to enforce strict memory protection and avoid undefined behavior, the \verb|unsafe_code| lint has been set to \verb|forbid| level which makes any usage of the unsafe blocks in the produced code emit a compile-time error which in no way can be overridden \cite{klabnik_rust_2023}
 
-    \item  Denying the use of \verb|unwrap()| calls
+    \subsection{Denying the use of unwrap function calls}
 
-    One of the core features of the rust programming language is its verbosity in handling error cases, if a function can fail it usually returns a \verb|Result| which contains either the desired value or the error and needs to be handled appropriately \cite{TODO}. The same is applied for possible null values which hare handled with the \verb|Option| type which returns a \verb|None| variant to signify the lack of a result \cite{TODO}. 
+    One of the core features of the rust programming language is its verbosity in handling error cases, if a function can fail it usually returns a \verb|Result| which contains either the desired value or the error and needs to be handled appropriately \cite{klabnik_recoverable_2023}. The same is applied for possible null values that have been handled with the \verb| Option| type that returns a \verb| None| variant to signify the lack of a result. 
     Those enforcements can be quickly bypassed by calling \verb|.unwrap()| on a \verb|Result| or an \verb|Option| value which will force the program to produce the desired value or fail and panic in the other case.
-    To ensure better code quality and fewer panics in the implementation the \verb|unwrap_used| lint has been set at the \verb|deny| level. 
-    This makes use of any \verb|unwrap| function calls result in a compilation error which forces the programmer to either handle the possible errors and None value accordingly or use the more verbose \verb|.expect()| call which requires an explanation to be provided to why the program should not panic when unwrapping this value \cite{TODO rust book}. 
-    Furthermore by setting the \verb|expect_used| lint at a warning level the programmer will be still notified upon compilation that such method is not the best practice.
+    To ensure better code quality and fewer panics in implementation, the \verb|unwrap_used| lint has been set at the \verb|deny| level. 
+    This makes use of any \verb|unwrap| function calls result in a compilation error which forces the programmer to either handle the possible errors and None value accordingly or use the more verbose \verb|.expect() | call, which requires an explanation to be provided as to why the program should not panic when unwrapping this value (\cite{klabnik_recoverable_2023}). 
+    Furthermore, setting the \verb| expect_used| lint at a warning level will notify the programmer upon compilation that this method is not the best practice.
 
-    \item Requirement of code documentation and other lints
+    \subsection{Requirement of Code Documentation and Other Lints}
 
-    By setting the \verb|missing_docs| lint at a deny level the compiler will enforce that any public facing struct, enum, trait, and method needs to provide any documentation in order for the program to compile. This ensures that code not only need to be correct but also documented in order to be compiled and tested, which results in better documented and more maintainable code. 
-    Furthermore by setting more specific lints such as \verb|clippy::pedantic| or \verb|clippy::nursery| the programmer is warned about bad code practices such as duplication module name in function or struct names or using less readable patterns such as \verb|if a != b|.
-\end{enumerate}
+    By setting the \verb|missing_docs| lint at a deny level the compiler will enforce that any public facing struct, enum, trait, and method needs to provide any documentation in order for the program to compile. This ensures that the code not only needs to be correct, but also documented in order to be compiled and tested, which results in better documented and more maintainable code. 
+    Furthermore, by setting more specific lints such as \verb|clippy::pedantic| or \verb|clippy::nursery| the programmer is warned about bad code practices such as duplication module name in function or struct names or using less readable patterns such as \verb|if a != b|.
 
 \section{Custom error types}
 
-Leveraging the use of the \verb|thiserror| crate \cite{tolnay_dtolnaythiserror_2024} the reader\ref{reader} and analyzer \ref{analyzer} modules expose custom error types which allow for better handling and displaying of any errors that occur. 
-A good example of this is trying to read the memory of a process running with privileged access as a regular user (see \ref{lst:verbose_err}). Normally the resulted panic message would contain only the IO error produced by the access denied system response but with custom error type the message is more verbose.
+Using \verb|thiserror| crate's \cite{tolnay_dtolnaythiserror_2024} modules, the reader\autoref{reader} and the analyzer \autoref{analyzer} expose custom error types that allow better handling and display of any errors that occur. 
+A good example of this is trying to read the memory of a process running with privileged access as a regular user (see \autoref{lst:verbose_err}). Normally, the resulted panic message would contain only the IO error produced by the access denied system response, but with custom error type, the message is more verbose.
 
 \begin{lstlisting}[caption=\label{lst:verbose_err}"Error when trying to read the pid 1 process"]
 Running `target/release/spotter-bin --log=error 1`
@@ -837,8 +916,8 @@ Analyzer should init: Builder(
                 ))))
 \end{lstlisting}
 
-Furthermore this allows any libraries that may depend on functions that emit such verbose errors to better respond to their occurrences and react accordingly. 
-A good example of this is in the x86\_64 map trait \ref{reader:map} implementation in which the error thrown on failure of parsing a file which is not in a compatible format is caught and only emitted as a warning message instead of causing the entire program to panic.
+Furthermore, this allows libraries that may depend on functions that emit such verbose errors to better respond to their occurrences and react accordingly. 
+A good example of this is in the implementation of the \verb|x86_64| map trait \autoref{reader:map} in which the error thrown on the failure to parse a file that is not in a compatible format is caught and only emitted as a warning message instead of causing the entire program to panic.
 
 \begin{lstlisting}[caption=\label{lst:err_handling}"Customm error handling example", language=Rust]
 let lib = match Library::try_from(p.clone()) {
@@ -854,11 +933,11 @@ let lib = match Library::try_from(p.clone()) {
             };
 \end{lstlisting}
 
-Additionally by usage of custom error types the test suite of the program can be enhanced with purposefully panicking code which passes the test only on specific error types.
+Additionally, by using custom error types, the program test suite can be enhanced with purposefully panicking code which passes the test only on specific error types.
 
 \section{Tracing}
 
-By incorporating the \verb|tracing| \cite{tokio-rs_team_tokio-rstracing_2024} dependency into the reader \ref{reader} and analyzer \ref{analyzer} modules the exposed methods can produce tracing information which can be used and consumed by other libraries
+By incorporating the \verb|tracing| \cite{tokio-rs_team_tokio-rstracing_2024} dependency into the reader \autoref{reader} and analyzer \autoref{analyzer} modules, the exposed methods can produce tracing information that can be used and consumed by other libraries.
 
 \begin{lstlisting}[language=Rust, caption="Code fragment showcasing conditionally emiting a warning"]
 if let Some(rep) = map.insert(addr, f.clone()) {
@@ -866,7 +945,7 @@ if let Some(rep) = map.insert(addr, f.clone()) {
 }
 \end{lstlisting}
 
-The binary module uses the \verb|tracing_subscriber| \cite{tokio-rs_team_tokiotracingtracing-subscriber_2024} crate to consume the data provided by it's function as well as it's dependencies and with the CLI setup to allow for trace level filtering the program can emit desired information to the end user.
+The binary module uses the \verb|tracing_subscriber| \cite{tokio-rs_team_tokiotracingtracing-subscriber_2024} crate to consume the data provided by it's function as well as it's dependencies, and with the CLI setup to allow for trace level filtering the program can emit desired information to the end user.
 
 \begin{lstlisting}[breaklines=true, caption="Fraction of the warnings emitted by the program with the log setting at warning level"]
 $ cargo run --release -- --log=warn 5293

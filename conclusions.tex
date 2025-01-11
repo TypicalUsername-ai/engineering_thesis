@@ -1,32 +1,97 @@
 \chapter{Conclusions}
 \label{cha:conlusions}
 
-\section{What went well}
+\section{Highlights}
 
-- memory map analysis
+\begin{enumerate}
+    \item{Memory Map} 
+    
+    The abstraction created for the process memory map was done really diligently and the employed techniques, such a smart pointers, allowed for a very quick and memory efficient implementation.
+    Additionally, providing data structures which joined library and raw memory data enhanced reader's overall ease of use and allowed for smooth memory address translation that was needed in analysis. 
 
-- reading the memory and comparing code
+    \item{Library and Memory address translation}
 
-- user interface and ease of use
+    The mechanism for address translation between memory space and process addressing was also implemented well.
+    Furthermore by allowing the function struct (\autoref{lst:so-function}) to hold the memory offset as well as function virtual address and size the analysis capabilities of the program could be easily extended to length verification or even creating function checksums for easier comparison.
 
-- analysis of function calls and function symbols
+    \item{User interface}
+
+    The application being a terminal interface allows for usage in any environment and supports most of the common terminals. 
+    Furthermore, usage of colors and highlighting allows for clean and easy to read interface.
+    Additionally, by implementing app navigation without mouse support and for keyboard keys the application can be easily used even through ssh connections.
+
+    \item {Function call matching}
+    By creating a global hash map of all function signatures, the program can quickly and effectively match the memory addresses to function names which significantly speeds up the analysis process.
+    Furthermore by making the hash map global if the program is extended with procedure linkage table section analysis this would allow for automatic matching of cross library function calls without sacrificing the applications speed or requiring significant codebasu upgrades.
+
+    \item{Core testing}
+    To ensure the correctness of the software, the core codebase is extensively unit tested with the reader crate having 18 unit and integration test to verify the workings and a 57\% (over 72\% for the reader module!) test code coverage. 
+    This is vital for ensuring that all of the core functionality works as expected and allows for easier future development as any new extensions or enhancements can be tested against the core functionality.
+
+    \begin{lstlisting}[caption="reader and analyzer joined coverage results"]
+    2025-01-11T21:25:28.742084Z  INFO cargo_tarpaulin::report: Coverage Results:
+|| Tested/Total Lines:
+|| analyzer/src/diff_analyzer.rs: 0/58 +0.00%
+|| analyzer/src/difference.rs: 0/26 +0.00%
+|| analyzer/src/insight.rs: 0/11 +0.00%
+|| analyzer/src/instruction.rs: 0/10 +0.00%
+|| reader/src/permissions.rs: 20/20 +0.00%
+|| reader/src/segments/break.rs: 11/18 +0.00%
+|| reader/src/segments/heap.rs: 11/18 +0.00%
+|| reader/src/segments/linked.rs: 13/18 +0.00%
+|| reader/src/segments/mapped_object.rs: 19/36 +0.00%
+|| reader/src/segments/stack.rs: 10/17 +0.00%
+|| reader/src/segments/vdso.rs: 3/10 +0.00%
+|| reader/src/segments/vvar.rs: 3/10 +0.00%
+|| reader/src/x86_64/header.rs: 32/36 +0.00%
+|| reader/src/x86_64/map.rs: 51/53 +0.00%
+|| reader/src/x86_64/segment.rs: 20/31 +0.00%
+|| reader/src/x86_64/shared_object.rs: 60/82 +0.00%
+|| reader/src/x86_64/so_function.rs: 19/28 +0.00%
+|| reader/tests/common/mod.rs: 10/10 +0.00%
+||
+57.32% coverage, 282/492 lines covered, +0.00% change in coverage
+    \end{lstlisting}
+    
+\end{enumerate}
 
 \section{Shortcomings}
 
-- lacking other section support other than \verb|.text|
+\begin{enumerate}
 
-- lacking address collision resolution
+    \item {Lack of wider section analysis}
+    
+    Even though the program does really well with analyzing the executable section of the provided process the analysis of procedure linkage table or readable and writable data sections could provide more insights such as user set variables or program's static string.
+    However this would require innate knowledge or parsing of data structures on a library basis which is immensely hard and tedious to implement even for a single architecture set.
+    
+    \item{Basic address collision resolution}
 
-- formatting issues with mangled code
+    The app provides only the basic function address collision resolution with the last function signature encountered to remain.
+    This process could have been implemented better, e.g. by collecting all of the colliding function names and displaying them, as the current implementation leaves this data only as warnings in the program logs. 
 
-- incomplete tests / no e2e tests
+    \item{No Demangling support}
+
+    The reader module parses the data from the symbol string table as-is which means that C libraries developed with long namespaces, or in different languages will provide less readable function names which could harm user experience.
+    However the basic function names can still always be readable which does not hurt much of the program's functionality. 
+    
+\end{enumerate}
 
 \section{Possible future enhancements}
 
-\subsection{New architectures}
+\begin{enumerate}
+    \item{Additional architecture support}
 
-\subsection{Demangle support}
+    Implementing the new architectures could be as simple as providing a new map trait impplementation for 32bit linux systems which would significantly widen the programs usage cases.
+    Furthermore even implementing very varying architectures can be implemented without rewriting singinficant amount of the codebase due to the project's modularity the analyzer's basic string output type, and the terminal interface style being very cross-platform adapatble.
+    
+    \item {Basic C/C++ demangling}
 
-\subsection{Enhancing test suite}
+    Implementing basic demangling for C or C++ based linked libraries could be as easy as plugging in a demangle library into the function creation process; or if such library is unavailable for the rust language then implementing the functionality through the usage of FFI calls.
+    This would wildly enhance the program's analysis capabilities as multiple programming languages also rely on C based libraries, expecially on Linux systems.
 
-\subsection{Cross-library and cross-segment function call tracing}
+    \item {Cross-library and cross-segment function call tracing}
+
+    By implementing analysis for the procedure linkage table of the linked libraries the program could very easily recognize function call made to other libraries and make the process of process analysis significantly more streamlined.
+    Furthermore this capability could be extended with interface functionality e.g. jumping to the called function on a button press which would make tracing the process execution path trivial.
+    
+\end{enumerate}

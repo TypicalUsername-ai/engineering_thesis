@@ -44,7 +44,7 @@
 \RequirePackage[english,polish]{babel}
 
 % Użyj polskiego łamania wyrazów (zamiast domyślnego angielskiego).
-\RequirePackage{polski}
+%\RequirePackage{polski}
 
 % Użyj kodowania UTF-8.
 \RequirePackage[utf8]{inputenc}
@@ -311,7 +311,7 @@
 	%
 	% Zastosuj styl wpisu bibliograficznego właściwy językowi publikacji.
 	language=english,
-	autolang=other,
+	autolang=english,
 	% Zapisuj datę dostępu do strony WWW w formacie RRRR-MM-DD.
 	urldate=iso8601,
 	% Nie dodawaj numerów stron, na których występuje cytowanie.
@@ -404,8 +404,9 @@
 }
 
 \AtBeginDocument{
-	\renewcommand{\tablename}{Tabela}
-	\renewcommand{\figurename}{Rys.}
+	\renewcommand{\tablename}{Table}
+	\renewcommand{\figurename}{Fig.}
+    \renewcommand{\abstractname}{Abstract}
 }
 
 % =============================================================================
