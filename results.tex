@@ -3,8 +3,8 @@
 
 For the example analysis using the produced program, the \verb|top v4.0.4| \cite{warner_procps-ng_2023} program was used on the development machine.
 This program is a utility that provides a terminal utility for displaying active processes and their usage.
-The development machine is running a WSL virtualized Linux distribution on Intel's 11th generation i5-1145G7 4 core processor. 
-The Linux distribution used is \verb|NixOS 25.05.20241229.88195a9 (Warbler) x86_6| running \verb|Linux 5.15.167.4-microsoft-standard-WSL2| kernel version.
+The development machine is running a WSL virtualized Linux distribution on Intel's 11th generation i5-1145G7 4 core processor.
+The Linux distribution used is \verb|NixOS 25.05.20241229.88195a9 (Warbler) x86_64| running \verb|Linux 5.15.167.4-microsoft-standard-WSL2| kernel version.
 The first step in analysis reproduction is to launch the \verb|top| program on the command line and push the process into the background with the \verb|&| operator.
 Afterwards the binary was called (used cargo's run command to compile the program from scratch with the release mode flag). The command line option provided to the binary (after -- ) is the process id and error as the minimum log level to avoid unnecessary verbosity (see \autoref{fig:cli-run}).
 
@@ -46,7 +46,7 @@ The user can then use the picker pane to navigate to the chosen function to deep
 
 Taking a look at the dependency picker in \autoref{fig:function-picker} , in addition to the main executable, the program links to 6 other dynamic libraries.
 The most obvious and possibly important ones are first the C standard library (\verb|libc.so.6|) and the GNU dynamic linker (\verb|ld-linux.so.2|).
-Even by briefly looking at the picker section an educated user can ascertain the major versions of the linked libraries by the file extensions - in this case the linker uses major version 2 and the C standard library has major version 6. 
+Even by briefly looking at the picker section an educated user can ascertain the major versions of the linked libraries by the file extensions - in this case the linker uses major version 2 and the C standard library has major version 6.
 Furthermore, the user can select any of the shared libraries to set them as active and view their executable sections in the left pane.
 Additionally, all of the linked libraries can be swapped to function view by using the tab key to allow fast scrolling to specific library functions in the disassembled view.
 
@@ -65,19 +65,19 @@ Digging deeper into the assembly code of the libraries, some link-time optimizat
 The main one is the annotations of the \verb|.cold| function and how the dynamic linker reacts to them.
 Cold is one of the parameters that can annotate the shared library and is responsible for marking the function as possibly unused \cite{noauthor_common_nodate}.
 The behavior for the Linux dynamic linker in such situations is to group these functions together, closer to the end of the allocated memory space to make way for the more used functions.
-This can also possibly improve the cache locality and prediction rate due to designating a specific region for the unused functions rather than placing them in regular places where they may take cache space from more used functions. 
-An example of such cold space can be seen in \autoref{fig:cold-func} where a cold function is highlighted in the right sections, and two cold function start symbols can be seen in the code section (\verb|__assert_fail_base.cold| and \verb|_nl_load_domain.cold|)
+This can also possibly improve the cache locality and prediction rate due to designating a specific region for the unused functions rather than placing them in regular places where they may take cache space from more used functions.
+An example of such cold space can be seen in \autoref{fig:cold-func} where a cold function is highlighted in the right sections, and two cold function start symbols can be seen in the code section (\verb|__assert_fail_base.cold| and \verb|_nl_load_domain.cold|).
 
-\begin{figure}
+\begin{figure}[h]
     \centering
     \includegraphics[width=1\linewidth]{cold-starts.png}
     \caption{Code fragment highlighting function marked as cold}
     \label{fig:cold-func}
 \end{figure}
 
-\subsection{pratitioning and inlining}
+\subsection{partitioning and inlining}
 
-Another optimization that can be looked at is the use of different function-like symbols to the symbol table, the most notable of which are function part markers.
+Another optimization that can be looked at is the addition of different function-like symbols to the symbol table, the most notable of which are function part markers.
 The cause of \verb|.part| annotations in the assembly instructions is due to the IPA optimizations of the GCC compiler \cite{noauthor_ipa_nodate}.
 In such cases the compiler can deem it more optimal to inline some parts of the functions into general code and invoke the rest only on specific condition (e.g. in the case of a function usually returning early).
 Furthermore, those optimizations can also be applied to loops with conditionals or breaks, switch statements, or even to inline whole functions if they are called a sufficiently small number of times.
@@ -98,7 +98,7 @@ As the NixOS operating system like Gentoo Linux distribution compiles most of it
 
 In this case, Intel-specific SIMD instructions are available such as \verb|movaps| which sets the address of SIMD-packed instructions and \verb|punpcklqdq| which is one of the unpacked SIMD instructions \cite{intel_corporation_intel_2024} (see \autoref{fig:simd-instructions}).
 
-\begin{figure}
+\begin{figure}[h]
     \centering
     \includegraphics[width=1\linewidth]{arch-specific-instruction.png}
     \caption{Assembly code fragment showing Intel-specific SIMD instructions}

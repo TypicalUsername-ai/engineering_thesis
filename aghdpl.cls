@@ -117,9 +117,9 @@
 		
 		\def\thesistable{
 			\begin{tabular}{p{45mm}l}
-			Author: & {\itshape \@author}\\[-1mm]
-			Degree programme: & {\itshape \@degreeprogramme}\\[-1mm]
-			Supervisor: & {\itshape \@supervisor}\\
+			Autor: & {\itshape \@author}\\[-1mm]
+			Kierunek studiów: & {\itshape \@degreeprogramme}\\[-1mm]
+			Opiekun pracy: & {\itshape \@supervisor}\\
 			\end{tabular}
 		}
 	}%
@@ -140,7 +140,7 @@
 			
 			\vspace*{1mm}
 			
-			{\sffamily\small\bfseries \@faculty}
+			{\sffamily\small\scshape\bfseries \@faculty}
 		}
 		\vspace*{15mm}
 		
@@ -156,7 +156,7 @@
 		\vspace*{1mm}
 		
 		{\sffamily\Large\itshape
-			\IfStrEqCase{ThesisLanguage}{%
+			\IfStrEqCase{\ThesisLanguage}{%
 				{pl}{\@titleEN}
 				{en}{\@titlePL}
 			}
